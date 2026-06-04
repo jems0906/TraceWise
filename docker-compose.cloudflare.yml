@@ -1,0 +1,10 @@
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:2026.5.2
+    container_name: tracewise-cloudflared
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARED_TUNNEL_TOKEN:?set in .env.cloudflare}
+    environment:
+      TUNNEL_LOGLEVEL: info
+    depends_on:
+      - frontend
+    restart: unless-stopped

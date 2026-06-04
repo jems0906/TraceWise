@@ -171,6 +171,30 @@ powershell -ExecutionPolicy Bypass -File .\scripts\smoke.ps1
 ```
 
 Detailed runbook: `SMOKE_TEST.md`.
+
+## Cloudflare Deployment
+
+TraceWise can be deployed through Cloudflare Tunnel in front of the frontend container.
+
+What is included in this repo:
+
+- `docker-compose.cloudflare.yml` for running Cloudflare Tunnel as a service
+- `.env.cloudflare.example` for the tunnel token
+- `cloudflare/README.md` for deployment steps
+- `scripts/start-cloudflare-tunnel.ps1` for launching a tunnel once `cloudflared.exe` is available
+
+Recommended deployment shape:
+
+1. Run the Docker stack locally or on a server.
+2. Copy `.env.cloudflare.example` to `.env.cloudflare` and set `CLOUDFLARED_TUNNEL_TOKEN`.
+3. Add the Cloudflare overlay with `docker-compose.cloudflare.yml`.
+4. Use `powershell -ExecutionPolicy Bypass -File .\scripts\deploy-cloudflare.ps1`.
+5. Keep the backend private and let the frontend proxy `/api` and `/auth` to it.
+
+Current blocker in this workspace:
+
+- Cloudflare DNS endpoints such as `api.trycloudflare.com` do not resolve from this network, so I could not create a live tunnel here.
+- The repo is prepared for Cloudflare deployment once you run it from a network that can reach Cloudflare or provide tunnel credentials.
 *** Add File: d:\project\TraceWise\frontend\Dockerfile
 FROM node:20-alpine AS build
 

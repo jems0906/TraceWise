@@ -1,0 +1,7 @@
+tunnel: tracewise
+credentials-file: /etc/cloudflared/tracewise.json
+
+ingress:
+  - hostname: tracewise.example.com
+    service: http://frontend:80
+  - service: http_status:404
