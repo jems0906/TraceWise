@@ -1,0 +1,297 @@
+:root {
+  --bg: #f3f1ea;
+  --ink: #1f2933;
+  --accent: #2a9d8f;
+  --accent-2: #e76f51;
+  --panel: #fffdf8;
+  --line: #d9d2c1;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+  background: radial-gradient(circle at 10% 10%, #fff, var(--bg));
+  color: var(--ink);
+}
+
+.page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.hero {
+  background: linear-gradient(120deg, #264653, #2a9d8f);
+  color: #fff;
+  padding: 1.2rem;
+  border-radius: 14px;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.hero p {
+  margin-top: 0.3rem;
+}
+
+.hero-note {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.auth-card {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 0.9rem;
+}
+
+.auth-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+}
+
+.auth-summary {
+  margin: 0.35rem 0 0.85rem;
+  line-height: 1.5;
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 360px 1fr;
+  margin-top: 1rem;
+}
+
+.column {
+  display: grid;
+  gap: 1rem;
+}
+
+.column.wide {
+  grid-template-rows: auto auto;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.stack {
+  display: grid;
+  gap: 0.6rem;
+}
+
+label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.92rem;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  border: 1px solid #c8c2b6;
+  border-radius: 8px;
+  padding: 0.5rem;
+  background: #fff;
+}
+
+button {
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+}
+
+button:hover {
+  filter: brightness(0.95);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+button.secondary {
+  background: #f0e8da;
+  color: #6e4b3a;
+}
+
+.list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  width: 100%;
+}
+
+.list-item.active {
+  border-color: var(--accent);
+}
+
+.list-title {
+  text-align: left;
+}
+
+.badge {
+  background: #f0e8da;
+  color: #6e4b3a;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.8rem;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.panel {
+  border: 1px dashed #c8c2b6;
+  border-radius: 10px;
+  padding: 0.75rem;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.muted {
+  color: #6f6b63;
+}
+
+.audit-card-section {
+  margin-top: 1rem;
+}
+
+.audit-filters {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+  margin-bottom: 1rem;
+}
+
+.audit-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: end;
+}
+
+.detail-cell {
+  max-width: 420px;
+  overflow-wrap: anywhere;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+  padding: 0.55rem;
+  vertical-align: top;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.8rem;
+}
+
+.kpi {
+  background: #f7f5ee;
+  border-radius: 10px;
+  padding: 0.7rem;
+  display: grid;
+}
+
+.kpi strong {
+  font-size: 1.2rem;
+}
+
+.charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.chart-box {
+  background: #fff;
+  border: 1px solid #ece6d8;
+  border-radius: 12px;
+  padding: 0.75rem;
+}
+
+.error {
+  margin-top: 1rem;
+  background: #ffe9e4;
+  border: 1px solid #f7b3a2;
+  border-radius: 10px;
+  color: #793122;
+  padding: 0.7rem;
+}
+
+@media (max-width: 980px) {
+  .hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .charts {
+    grid-template-columns: 1fr;
+  }
+
+  .audit-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .section-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

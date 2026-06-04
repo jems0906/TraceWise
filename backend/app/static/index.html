@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TraceWise</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="/static/style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  </head>
+  <body>
+    <main class="container py-4">
+      <section class="hero p-4 rounded-4 mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+          <div>
+            <h1 class="display-6 mb-2">TraceWise</h1>
+            <p class="mb-0">Requirement Intelligence And End-To-End Traceability</p>
+          </div>
+          <div class="auth-box text-end">
+            <div id="auth-status" class="small mb-2">Auth: checking...</div>
+            <div class="d-flex flex-wrap gap-2 justify-content-end">
+              <select id="demo-role" class="form-select form-select-sm w-auto" aria-label="Demo login role" title="Demo login role">
+                <option value="analyst" selected>analyst</option>
+                <option value="admin">admin</option>
+                <option value="viewer">viewer</option>
+              </select>
+              <button id="btn-login" class="btn btn-sm btn-light" type="button">OAuth Login</button>
+              <button id="btn-demo-login" class="btn btn-sm btn-outline-light" type="button">Demo Login</button>
+              <button id="btn-logout" class="btn btn-sm btn-outline-warning" type="button">Logout</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="row g-4">
+        <div class="col-lg-4">
+          <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+              <h2 class="h5">Stakeholder Intake</h2>
+              <form id="intake-form" class="d-grid gap-3 mt-3">
+                <div>
+                  <label class="form-label" for="stakeholder">Stakeholder</label>
+                  <input class="form-control" id="stakeholder" value="Business Team" />
+                </div>
+                <div>
+                  <label class="form-label" for="priority">Priority</label>
+                  <select class="form-select" id="priority">
+                    <option>Low</option>
+                    <option selected>Medium</option>
+                    <option>High</option>
+                    <option>Critical</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" for="raw">Raw Need</label>
+                  <textarea class="form-control" id="raw" rows="6" required></textarea>
+                </div>
+                <button class="btn btn-primary" type="submit">Analyze And Create</button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-8">
+          <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-4">
+              <div class="d-flex justify-content-between align-items-center">
+                <h2 class="h5 mb-0">Requirements</h2>
+                <div class="d-flex gap-2">
+                  <button id="export-brd" class="btn btn-outline-secondary btn-sm">Export BRD</button>
+                  <button id="export-frd" class="btn btn-outline-secondary btn-sm">Export FRD</button>
+                  <button id="export-audit" class="btn btn-outline-secondary btn-sm">Export Audit CSV</button>
+                </div>
+              </div>
+              <div class="table-responsive mt-3">
+                <table class="table align-middle" id="requirements-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Title</th>
+                      <th>Priority</th>
+                      <th>Impact</th>
+                      <th>Created By</th>
+                      <th>Updated By</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <section class="row g-4 mt-1">
+        <div class="col-lg-6">
+          <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+              <h3 class="h6">Traceability Matrix</h3>
+              <div class="table-responsive mt-2">
+                <table class="table align-middle" id="matrix-table">
+                  <thead>
+                    <tr>
+                      <th>Req</th>
+                      <th>User Story</th>
+                      <th>Task</th>
+                      <th>Test Case</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-6">
+          <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+              <h3 class="h6">Coverage Dashboard</h3>
+              <div class="row g-3 mb-3">
+                <div class="col-6">
+                  <div class="metric p-3 rounded-3">
+                    <div class="small text-muted">Total Requirements</div>
+                    <div class="fs-3 fw-semibold" id="kpi-total">0</div>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="metric p-3 rounded-3">
+                    <div class="small text-muted">Trace Coverage</div>
+                    <div class="fs-3 fw-semibold" id="kpi-coverage">0%</div>
+                  </div>
+                </div>
+              </div>
+              <canvas id="priority-chart" height="140"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card border-0 shadow-sm rounded-4 mt-4">
+        <div class="card-body p-4">
+          <h3 class="h6">Selected Requirement Actions</h3>
+          <p class="text-muted small mb-2">Select a requirement row action first.</p>
+          <div id="selected-requirement" class="small text-muted mb-3">None selected</div>
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            <button id="btn-clarify" class="btn btn-sm btn-secondary">AI Clarification</button>
+            <button id="btn-duplicates" class="btn btn-sm btn-secondary">Duplicate Check</button>
+            <button id="btn-activity" class="btn btn-sm btn-secondary">Requirement Activity</button>
+          </div>
+          <div id="action-output" class="output p-3 rounded-3"></div>
+
+          <hr />
+          <h4 class="h6">Add Trace Link</h4>
+          <form id="trace-form" class="row g-2 mt-1">
+            <div class="col-md-4"><input id="trace-user-story" class="form-control" placeholder="User story" required /></div>
+            <div class="col-md-4"><input id="trace-task" class="form-control" placeholder="Task" required /></div>
+            <div class="col-md-3"><input id="trace-test" class="form-control" placeholder="Test case" required /></div>
+            <div class="col-md-1 d-grid"><button class="btn btn-primary" type="submit">Add</button></div>
+          </form>
+
+          <hr />
+          <div class="row g-3">
+            <div class="col-lg-6">
+              <h4 class="h6">Selected Requirement Versions</h4>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle" id="version-table">
+                  <thead>
+                    <tr>
+                      <th>Version</th>
+                      <th>Change Note</th>
+                      <th>Actor</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <h4 class="h6">Selected Requirement Trace Links</h4>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle" id="trace-table">
+                  <thead>
+                    <tr>
+                      <th>User Story</th>
+                      <th>Task</th>
+                      <th>Test Case</th>
+                      <th>Actor</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card border-0 shadow-sm rounded-4 mt-4">
+        <div class="card-body p-4">
+          <h3 class="h6">Recent Audit Events</h3>
+          <form id="audit-filter-form" class="row g-2 mt-1 mb-2">
+            <div class="col-md-3"><input id="audit-actor" class="form-control form-control-sm" placeholder="Actor (email/name)" /></div>
+            <div class="col-md-2"><input id="audit-action" class="form-control form-control-sm" placeholder="Action" /></div>
+            <div class="col-md-2"><input id="audit-from" class="form-control form-control-sm" type="date" aria-label="Audit from date" /></div>
+            <div class="col-md-2"><input id="audit-to" class="form-control form-control-sm" type="date" aria-label="Audit to date" /></div>
+            <div class="col-md-2"><input id="audit-q" class="form-control form-control-sm" placeholder="Keyword" /></div>
+            <div class="col-md-1 d-grid"><button class="btn btn-sm btn-outline-secondary" type="submit">Apply</button></div>
+            <div class="col-md-1 d-grid"><button id="audit-reset" class="btn btn-sm btn-outline-secondary" type="button">Reset</button></div>
+          </form>
+          <div class="table-responsive mt-2">
+            <table class="table align-middle" id="audit-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>User</th>
+                  <th>Role</th>
+                  <th>Action</th>
+                  <th>Target</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <div id="status" class="alert alert-light border mt-4 mb-0">Ready.</div>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

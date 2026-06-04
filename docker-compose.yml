@@ -1,0 +1,55 @@
+services:
+  db:
+    image: postgres:16
+    container_name: tracewise-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: tracewise
+    ports:
+      - "5432:5432"
+    volumes:
+      - tracewise_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tracewise"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tracewise-backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/tracewise
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      ALLOW_FALLBACK_AI: "true"
+      AUTH_REQUIRED: ${AUTH_REQUIRED:-true}
+      DEMO_LOGIN_ENABLED: ${DEMO_LOGIN_ENABLED:-true}
+      SESSION_SECRET: ${SESSION_SECRET:-tracewise-dev-session-secret-change-me}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_DISCOVERY_URL: ${GOOGLE_DISCOVERY_URL:-https://accounts.google.com/.well-known/openid-configuration}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:8011,http://127.0.0.1:8011}
+    ports:
+      - "8001:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: ""
+    container_name: tracewise-frontend
+    ports:
+      - "8011:80"
+    depends_on:
+      - backend
+
+volumes:
+  tracewise_db_data:

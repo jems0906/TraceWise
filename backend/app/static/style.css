@@ -1,0 +1,29 @@
+body {
+  background: radial-gradient(circle at 20% 0%, #f7fbff, #eef3ea);
+}
+
+.hero {
+  background: linear-gradient(120deg, #0b3d4a, #2a9d8f);
+  color: #fff;
+}
+
+.auth-box {
+  min-width: 250px;
+}
+
+.metric {
+  background: #f6f4ee;
+  border: 1px solid #e2dccd;
+}
+
+.output {
+  background: #fbfaf6;
+  border: 1px dashed #d2c8b6;
+  min-height: 56px;
+  white-space: pre-wrap;
+}
+
+.table td,
+.table th {
+  vertical-align: top;
+}
