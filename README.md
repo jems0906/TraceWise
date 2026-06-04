@@ -172,88 +172,33 @@ powershell -ExecutionPolicy Bypass -File .\scripts\smoke.ps1
 
 Detailed runbook: `SMOKE_TEST.md`.
 
-## Cloudflare Deployment
+## Cloudflare-Only Deployment
 
-TraceWise can be deployed through Cloudflare Tunnel in front of the frontend container.
+This repository currently supports Cloudflare ingress through Cloudflare Tunnel.
 
-What is included in this repo:
+Architecture:
 
-- `docker-compose.cloudflare.yml` for running Cloudflare Tunnel as a service
-- `.env.cloudflare.example` for the tunnel token
-- `cloudflare/README.md` for deployment steps
-- `scripts/start-cloudflare-tunnel.ps1` for launching a tunnel once `cloudflared.exe` is available
+- Public edge: Cloudflare Tunnel
+- App runtime: local or server Docker stack in this repository
+- Frontend entry: container `frontend` on port `80`
+- Backend API: container `backend` on port `8000` (private)
+- Database: container `db` (private)
 
-Recommended deployment shape:
+Quick start:
 
-1. Run the Docker stack locally or on a server.
-2. Copy `.env.cloudflare.example` to `.env.cloudflare` and set `CLOUDFLARED_TUNNEL_TOKEN`.
-3. Add the Cloudflare overlay with `docker-compose.cloudflare.yml`.
-4. Use `powershell -ExecutionPolicy Bypass -File .\scripts\deploy-cloudflare.ps1`.
-5. Keep the backend private and let the frontend proxy `/api` and `/auth` to it.
+1. Copy `.env.cloudflare.example` to `.env.cloudflare`.
+2. Create a named tunnel in Cloudflare Zero Trust and get a connector token.
+3. Set `CLOUDFLARED_TUNNEL_TOKEN` in `.env.cloudflare`.
+4. Start the app stack and tunnel:
 
-Current blocker in this workspace:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\deploy-cloudflare.ps1
+```
 
-- Cloudflare DNS endpoints such as `api.trycloudflare.com` do not resolve from this network, so I could not create a live tunnel here.
-- The repo is prepared for Cloudflare deployment once you run it from a network that can reach Cloudflare or provide tunnel credentials.
-*** Add File: d:\project\TraceWise\frontend\Dockerfile
-FROM node:20-alpine AS build
+Detailed setup is documented in [cloudflare/README.md](cloudflare/README.md).
 
-WORKDIR /app
+Important:
 
-COPY package.json ./
-RUN npm install --no-audit --no-fund
-
-COPY . .
-
-ARG VITE_API_BASE=
-ENV VITE_API_BASE=${VITE_API_BASE}
-
-RUN npm run build
-
-FROM nginx:1.27-alpine
-
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist /usr/share/nginx/html
-
-EXPOSE 80
-*** Add File: d:\project\TraceWise\frontend\nginx.conf
-server {
-  listen 80;
-  server_name _;
-
-  root /usr/share/nginx/html;
-  index index.html;
-
-  location /api/ {
-    proxy_pass http://backend:8000/api/;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-  }
-
-  location /auth/ {
-    proxy_pass http://backend:8000/auth/;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-  }
-
-  location = /health {
-    proxy_pass http://backend:8000/health;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-  }
-
-  location / {
-    try_files $uri $uri/ /index.html;
-  }
-}
-*** Add File: d:\project\TraceWise\frontend\.env.example
-VITE_API_BASE=http://localhost:8000
+- Backend and database stay private and are not directly exposed.
+- Frontend proxies `/api`, `/auth`, and `/health` to backend.
+- If your network blocks Cloudflare DNS endpoints, tunnel creation may fail in that network.

@@ -29,6 +29,18 @@ def _cors_origins() -> list[str]:
     ]
 
 
+def _session_same_site() -> str:
+    configured = os.getenv("SESSION_COOKIE_SAMESITE", "lax").strip().lower()
+    if configured in {"lax", "strict", "none"}:
+        return configured
+    return "lax"
+
+
+def _session_https_only() -> bool:
+    configured = os.getenv("SESSION_COOKIE_SECURE", "false").strip().lower()
+    return configured in {"1", "true", "yes", "on"}
+
+
 def _ensure_sqlite_actor_columns() -> None:
     if not str(engine.url).startswith("sqlite"):
         return
@@ -84,8 +96,8 @@ app.add_middleware(
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SESSION_SECRET", "tracewise-dev-session-secret-change-me"),
-    same_site="lax",
-    https_only=False,
+    same_site=_session_same_site(),
+    https_only=_session_https_only(),
 )
 
 app.include_router(requirements_router)
