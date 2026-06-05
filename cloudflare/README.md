@@ -16,6 +16,8 @@ This repository now targets a Cloudflare-native split deployment:
 6. Set `VITE_API_BASE` in Cloudflare Pages to the Worker URL.
 7. Set `CORS_ORIGINS` and `FRONTEND_URL` in the Worker environment.
 
+For a copy-paste checklist with exact example values, see [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md).
+
 ## Required Worker Variables
 
 - `SESSION_SECRET`
