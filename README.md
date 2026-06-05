@@ -2,7 +2,7 @@
 
 TraceWise is a requirement intelligence platform for business analysts to collect stakeholder input, structure requirements, and preserve end-to-end traceability.
 
-The primary runtime path is now React on the frontend, FastAPI on the backend, and PostgreSQL through Docker Compose. A no-build FastAPI-served fallback UI still exists for constrained Windows environments.
+The Cloudflare-native target is now Cloudflare Pages for the frontend, Cloudflare Workers for the API, and Cloudflare D1 for persistence. The legacy FastAPI + PostgreSQL stack still exists in the repo for local comparison and rollback.
 
 ## Implemented Features
 
@@ -24,15 +24,17 @@ The primary runtime path is now React on the frontend, FastAPI on the backend, a
 
 ## Tech Stack
 
-- Frontend: React + Vite + Chart.js
-- Backend: FastAPI + SQLAlchemy
-- Database: PostgreSQL (primary) or SQLite (local fallback)
+- Frontend: React + Vite + Chart.js, deployable to Cloudflare Pages
+- Backend: Cloudflare Worker API
+- Database: Cloudflare D1
+- Legacy backend: FastAPI + SQLAlchemy for local/runtime comparison
 - AI: OpenAI API with safe fallback parser when key is absent
 
 ## Project Structure
 
-- frontend: React UI
-- backend: FastAPI API service
+- frontend: React UI for Pages deployment
+- worker: Cloudflare Worker API + D1 schema
+- backend: Legacy FastAPI API service
 - docker-compose.yml: PostgreSQL + backend + React frontend proxy
 
 ## Primary Run
@@ -172,33 +174,27 @@ powershell -ExecutionPolicy Bypass -File .\scripts\smoke.ps1
 
 Detailed runbook: `SMOKE_TEST.md`.
 
-## Cloudflare-Only Deployment
+## Cloudflare Migration
 
-This repository currently supports Cloudflare ingress through Cloudflare Tunnel.
+The Cloudflare-native target is:
 
-Architecture:
+- Frontend: Cloudflare Pages
+- Backend: Cloudflare Worker
+- Database: Cloudflare D1
 
-- Public edge: Cloudflare Tunnel
-- App runtime: local or server Docker stack in this repository
-- Frontend entry: container `frontend` on port `80`
-- Backend API: container `backend` on port `8000` (private)
-- Database: container `db` (private)
+Migration notes:
 
-Quick start:
+1. The Worker API under [worker/src/main.js](worker/src/main.js) preserves the same endpoint shape the React app already uses.
+2. The D1 schema is in [worker/migrations/0001_init.sql](worker/migrations/0001_init.sql).
+3. The Pages build should set `VITE_API_BASE` to the Worker URL or custom API hostname.
+4. Demo login is supported in the Worker runtime; OAuth can be added later without changing the frontend contract.
 
-1. Copy `.env.cloudflare.example` to `.env.cloudflare`.
-2. Create a named tunnel in Cloudflare Zero Trust and get a connector token.
-3. Set `CLOUDFLARED_TUNNEL_TOKEN` in `.env.cloudflare`.
-4. Start the app stack and tunnel:
+Deployment guide:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\deploy-cloudflare.ps1
-```
+1. Create a D1 database in Cloudflare and copy the database ID into [worker/wrangler.toml](worker/wrangler.toml).
+2. Deploy the Worker from the `worker` folder.
+3. Deploy the React app from the `frontend` folder to Cloudflare Pages.
+4. Set the Pages environment variable `VITE_API_BASE` to the Worker URL.
+5. Set Worker vars for `CORS_ORIGINS`, `FRONTEND_URL`, `SESSION_SECRET`, and optional Google OAuth.
 
 Detailed setup is documented in [cloudflare/README.md](cloudflare/README.md).
-
-Important:
-
-- Backend and database stay private and are not directly exposed.
-- Frontend proxies `/api`, `/auth`, and `/health` to backend.
-- If your network blocks Cloudflare DNS endpoints, tunnel creation may fail in that network.

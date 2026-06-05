@@ -1,51 +1,35 @@
-# Cloudflare Deployment
+# Cloudflare Native Deployment
 
-This repository supports Cloudflare Tunnel in front of the TraceWise frontend container.
+This repository now targets a Cloudflare-native split deployment:
 
-Recommended production shape:
-
-- Frontend: container `frontend` on port `80`
-- Backend: private container `backend` on port `8000`
-- Database: private PostgreSQL container `db`
-- Public ingress: `cloudflared` container using a named tunnel token
+- Frontend: Cloudflare Pages
+- Backend: Cloudflare Worker
+- Database: Cloudflare D1
 
 ## Quick Start
 
-1. Copy `.env.cloudflare.example` to `.env.cloudflare`.
-2. Create a tunnel in Cloudflare Zero Trust and get a named-tunnel token.
-3. Put the token in `.env.cloudflare` as `CLOUDFLARED_TUNNEL_TOKEN`.
-4. Start the stack:
+1. Create a D1 database in Cloudflare.
+2. Update [worker/wrangler.toml](worker/wrangler.toml) with the D1 database ID.
+3. Apply the schema in [worker/migrations/0001_init.sql](worker/migrations/0001_init.sql).
+4. Deploy the Worker from the `worker` folder.
+5. Deploy the frontend from the `frontend` folder to Cloudflare Pages.
+6. Set `VITE_API_BASE` in Cloudflare Pages to the Worker URL.
+7. Set `CORS_ORIGINS` and `FRONTEND_URL` in the Worker environment.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\deploy-cloudflare.ps1
-```
+## Required Worker Variables
 
-## Named Tunnel Steps
-
-On a machine that can reach Cloudflare, run:
-
-```powershell
-cloudflared tunnel login
-cloudflared tunnel create tracewise
-cloudflared tunnel route dns tracewise tracewise.example.com
-cloudflared tunnel token tracewise
-```
-
-Copy the token output into `.env.cloudflare`.
-
-If you prefer Cloudflare Zero Trust in the browser, go to Zero Trust > Networks > Tunnels > Create a tunnel, then copy the connector token from the install instructions.
+- `SESSION_SECRET`
+- `CORS_ORIGINS`
+- `FRONTEND_URL`
+- `AUTH_REQUIRED`
+- `DEMO_LOGIN_ENABLED`
+- `SESSION_COOKIE_SAMESITE`
+- `SESSION_COOKIE_SECURE`
+- `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` if you want OAuth
+- `OPENAI_API_KEY` if you want live AI responses instead of fallback logic
 
 ## Notes
 
-- The tunnel points to the frontend container.
-- The frontend already proxies `/api`, `/auth`, and `/health` to the backend container.
-- Do not expose the backend port publicly unless you explicitly want direct API access.
-- If you use a host machine instead of Docker for `cloudflared`, the same tunnel token works with `scripts/start-cloudflare-tunnel.ps1`.
-
-## Local Helper
-
-If you want to verify the tunnel command separately, use:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\start-cloudflare-tunnel.ps1
-```
+- The Worker exposes the same API shape the React app already uses.
+- D1 stores requirements, versions, trace links, and audit events.
+- The legacy Docker/Cloudflare Tunnel flow has been retained in the repo history but is no longer the target path.

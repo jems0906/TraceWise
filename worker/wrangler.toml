@@ -1,0 +1,24 @@
+name = "tracewise-api"
+main = "src/main.js"
+compatibility_date = "2026-06-05"
+workers_dev = true
+
+[vars]
+AUTH_REQUIRED = "true"
+DEMO_LOGIN_ENABLED = "true"
+SESSION_COOKIE_SAMESITE = "none"
+SESSION_COOKIE_SECURE = "true"
+OPENAI_MODEL = "gpt-4o-mini"
+ALLOW_FALLBACK_AI = "true"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "tracewise-db"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+[env.production.vars]
+AUTH_REQUIRED = "true"
+DEMO_LOGIN_ENABLED = "false"
+SESSION_COOKIE_SAMESITE = "none"
+SESSION_COOKIE_SECURE = "true"
+ALLOW_FALLBACK_AI = "true"
