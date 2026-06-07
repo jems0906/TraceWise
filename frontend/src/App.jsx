@@ -199,7 +199,9 @@ export default function App() {
   const authSummary = authState.user
     ? `${authState.user.name} (${authState.user.role})`
     : authState.auth_required
-      ? "Sign in with OAuth to create or update requirements."
+      ? authState.oauth_ready
+        ? "Sign in with Google to create or update requirements."
+        : "Use demo access to create or update requirements. Google sign-in is not configured yet."
       : "Authentication optional.";
 
   return (
@@ -215,9 +217,11 @@ export default function App() {
             <div className="auth-label">Access</div>
             <div className="auth-summary">{authSummary}</div>
             <div className="toolbar">
-              <button type="button" onClick={startOAuthLogin} disabled={!authState.oauth_ready}>
-                OAuth Login
-              </button>
+              {authState.oauth_ready && (
+                <button type="button" onClick={startOAuthLogin}>
+                  Google Login
+                </button>
+              )}
               {authState.demo_login_enabled && (
                 <>
                   <button type="button" className="secondary" onClick={() => startDemoLogin("analyst")}>
