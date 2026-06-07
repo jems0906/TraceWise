@@ -1,0 +1,90 @@
+name: Production Monitoring
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  uptime-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      FRONTEND_URL: https://tracewise.pages.dev
+      API_HEALTH_URL: https://tracewise-api.dorviene09.workers.dev/health
+    steps:
+      - name: Check frontend availability
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o frontend_response.txt -w "%{http_code}" "$FRONTEND_URL")
+          echo "frontend_status=$code" >> "$GITHUB_ENV"
+          if [ "$code" -ne 200 ]; then
+            echo "Frontend check failed with HTTP $code"
+            cat frontend_response.txt
+            exit 1
+          fi
+
+      - name: Check API health availability
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o api_response.txt -w "%{http_code}" "$API_HEALTH_URL")
+          echo "api_status=$code" >> "$GITHUB_ENV"
+          if [ "$code" -ne 200 ]; then
+            echo "API health check failed with HTTP $code"
+            cat api_response.txt
+            exit 1
+          fi
+
+      - name: Validate API payload shape
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          with open('api_response.txt', 'r', encoding='utf-8') as f:
+              payload = json.load(f)
+          if payload.get('status') != 'ok':
+              raise SystemExit(f"Unexpected API status: {payload}")
+          if 'service' not in payload:
+              raise SystemExit(f"Missing service key: {payload}")
+          print('API payload validation passed')
+          PY
+
+      - name: Build failure summary
+        if: failure()
+        run: |
+          {
+            echo "Production monitoring failure detected.";
+            echo "";
+            echo "- Frontend URL: $FRONTEND_URL";
+            echo "- API URL: $API_HEALTH_URL";
+            echo "- Frontend HTTP: ${frontend_status:-unknown}";
+            echo "- API HTTP: ${api_status:-unknown}";
+            echo "- Workflow Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID";
+          } > monitor_failure.txt
+
+      - name: Open GitHub issue on monitor failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('monitor_failure.txt', 'utf8');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const title = '[Monitoring] TraceWise production check failed';
+            const existing = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'open',
+              creator: 'github-actions[bot]',
+              per_page: 100,
+            });
+            const alreadyOpen = existing.data.some((issue) => issue.title === title);
+            if (!alreadyOpen) {
+              await github.rest.issues.create({ owner, repo, title, body, labels: ['monitoring', 'production'] });
+            }
