@@ -1,4 +1,5 @@
 const SESSION_COOKIE = "tw_session";
+const OAUTH_STATE_COOKIE = "tw_oauth_state";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -88,6 +89,87 @@ function sessionSecret(env) {
   return String(env.SESSION_SECRET || "tracewise-worker-dev-secret").trim();
 }
 
+function oauthReady(env) {
+  return Boolean(String(env.GOOGLE_CLIENT_ID || "").trim() && String(env.GOOGLE_CLIENT_SECRET || "").trim());
+}
+
+function workerBaseUrl(request, env) {
+  const configured = String(env.WORKER_BASE_URL || "").trim();
+  if (configured) return configured.replace(/\/$/, "");
+  return new URL(request.url).origin;
+}
+
+function frontendBaseUrl(request, env) {
+  const configured = String(env.FRONTEND_URL || "").trim();
+  if (configured) return configured.replace(/\/$/, "");
+  const allowed = origins(env);
+  if (allowed.length) return allowed[0].replace(/\/$/, "");
+  return new URL(request.url).origin;
+}
+
+function googleRedirectUri(request, env) {
+  const configured = String(env.GOOGLE_REDIRECT_URI || "").trim();
+  if (configured) return configured;
+  return `${workerBaseUrl(request, env)}/auth/callback`;
+}
+
+function oauthStateToken() {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return b64UrlEncode(bytes);
+}
+
+function emailListEnv(value) {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function roleForUser(env, email) {
+  const target = String(email || "").trim().toLowerCase();
+  if (!target) return "analyst";
+  if (emailListEnv(env.ADMIN_EMAILS).includes(target)) return "admin";
+  if (emailListEnv(env.VIEWER_EMAILS).includes(target)) return "viewer";
+  return "analyst";
+}
+
+async function exchangeGoogleCode(request, env, code) {
+  const params = new URLSearchParams({
+    code,
+    client_id: String(env.GOOGLE_CLIENT_ID || "").trim(),
+    client_secret: String(env.GOOGLE_CLIENT_SECRET || "").trim(),
+    redirect_uri: googleRedirectUri(request, env),
+    grant_type: "authorization_code",
+  });
+
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: params.toString(),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Google token exchange failed: ${text || res.status}`);
+  }
+
+  return res.json();
+}
+
+async function googleUserInfo(accessToken) {
+  const res = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Google userinfo failed: ${text || res.status}`);
+  }
+
+  return res.json();
+}
+
 async function encodeSession(env, user) {
   const payload = {
     email: String(user?.email || ""),
@@ -154,7 +236,7 @@ async function currentUser(request, env) {
 function authState(user, env) {
   return {
     auth_required: boolEnv(env.AUTH_REQUIRED, false),
-    oauth_ready: false,
+    oauth_ready: oauthReady(env),
     demo_login_enabled: boolEnv(env.DEMO_LOGIN_ENABLED, true),
     user: user || null,
     permissions: {
@@ -540,8 +622,100 @@ async function handleRequest(request, env) {
   if (path === "/") return json({ status: "ok", service: "TraceWise Worker API" }, {}, origin);
 
   if (path === "/auth/me" && request.method === "GET") return json(authState(await currentUser(request, env), env), {}, origin);
-  if (path === "/auth/login" && request.method === "GET") return json({ detail: "OAuth is not configured in the Worker migration yet" }, { status: 503 }, origin);
-  if (path === "/auth/callback" && request.method === "GET") return json({ detail: "OAuth is not configured in the Worker migration yet" }, { status: 503 }, origin);
+  if (path === "/auth/login" && request.method === "GET") {
+    if (!oauthReady(env)) return json({ detail: "OAuth is not configured" }, { status: 503 }, origin);
+    const state = oauthStateToken();
+    const redirect = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+    redirect.searchParams.set("client_id", String(env.GOOGLE_CLIENT_ID || "").trim());
+    redirect.searchParams.set("redirect_uri", googleRedirectUri(request, env));
+    redirect.searchParams.set("response_type", "code");
+    redirect.searchParams.set("scope", "openid email profile");
+    redirect.searchParams.set("state", state);
+    redirect.searchParams.set("prompt", "select_account");
+
+    const headers = new Headers();
+    headers.set("Location", redirect.toString());
+    headers.append(
+      "Set-Cookie",
+      setCookie(OAUTH_STATE_COOKIE, state, {
+        sameSite: "Lax",
+        secure: boolEnv(env.SESSION_COOKIE_SECURE, true),
+        maxAge: 60 * 10,
+      })
+    );
+    return new Response(null, { status: 302, headers });
+  }
+  if (path === "/auth/callback" && request.method === "GET") {
+    const frontend = frontendBaseUrl(request, env);
+    const urlError = url.searchParams.get("error");
+    if (urlError) {
+      return new Response(null, { status: 302, headers: { Location: `${frontend}?auth_error=${encodeURIComponent(urlError)}` } });
+    }
+    const code = String(url.searchParams.get("code") || "").trim();
+    const state = String(url.searchParams.get("state") || "").trim();
+    const cookies = parseCookies(request);
+    const expectedState = String(cookies[OAUTH_STATE_COOKIE] || "");
+
+    if (!code || !state || !expectedState || state !== expectedState) {
+      const headers = new Headers();
+      headers.set("Location", `${frontend}?auth_error=invalid_state`);
+      headers.append(
+        "Set-Cookie",
+        clearCookie(OAUTH_STATE_COOKIE, {
+          sameSite: "Lax",
+          secure: boolEnv(env.SESSION_COOKIE_SECURE, true),
+        })
+      );
+      return new Response(null, { status: 302, headers });
+    }
+
+    try {
+      const token = await exchangeGoogleCode(request, env, code);
+      const profile = await googleUserInfo(token.access_token);
+      const user = {
+        email: String(profile.email || ""),
+        name: String(profile.name || profile.given_name || "Google User"),
+        role: roleForUser(env, profile.email),
+      };
+
+      await auditInsert(env, {
+        action: "auth.oauth_login",
+        targetType: "session",
+        targetId: user.email || "unknown",
+        details: { provider: "google", role: user.role },
+        user,
+      });
+
+      const headers = new Headers();
+      headers.set("Location", frontend);
+      headers.append(
+        "Set-Cookie",
+        setCookie(SESSION_COOKIE, await encodeSession(env, user), {
+          sameSite: "None",
+          secure: boolEnv(env.SESSION_COOKIE_SECURE, true),
+        })
+      );
+      headers.append(
+        "Set-Cookie",
+        clearCookie(OAUTH_STATE_COOKIE, {
+          sameSite: "Lax",
+          secure: boolEnv(env.SESSION_COOKIE_SECURE, true),
+        })
+      );
+      return new Response(null, { status: 302, headers });
+    } catch {
+      const headers = new Headers();
+      headers.set("Location", `${frontend}?auth_error=oauth_failed`);
+      headers.append(
+        "Set-Cookie",
+        clearCookie(OAUTH_STATE_COOKIE, {
+          sameSite: "Lax",
+          secure: boolEnv(env.SESSION_COOKIE_SECURE, true),
+        })
+      );
+      return new Response(null, { status: 302, headers });
+    }
+  }
   if (path === "/auth/demo-login" && request.method === "POST") {
     if (!boolEnv(env.DEMO_LOGIN_ENABLED, true)) return json({ detail: "Demo login is disabled" }, { status: 403 }, origin);
     const body = await request.json().catch(() => null);
